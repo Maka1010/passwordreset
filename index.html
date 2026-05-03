@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recuperar contraseña — SchoolTask</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="center-page">
+    <div class="page-wrap">
+      <main class="card" aria-labelledby="title-forgot">
+        <h1 id="title-forgot">Recuperar contraseña</h1>
+        <p class="subtitle">
+          Introduce tu correo y te enviaremos un enlace seguro si la cuenta existe.
+        </p>
+
+        <div id="banner-config" class="msg error" role="alert"></div>
+
+        <div id="announce" class="msg" role="status" aria-live="polite"></div>
+
+        <form id="forgot-form" novalidate>
+          <div class="form-group">
+            <label for="email">Correo electrónico</label>
+            <div class="input-wrap">
+              <input
+                type="email"
+                id="email"
+                name="email"
+                autocomplete="email"
+                inputmode="email"
+                maxlength="254"
+                placeholder="tu-correo@ejemplo.com"
+                required
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="btn-submit">
+            <span class="btn-text">Enviar enlace</span>
+          </button>
+        </form>
+
+        <p class="footer-note">
+          Usa esta página únicamente bajo HTTPS. SchoolTask usa Supabase Auth y no permite inferir desde
+          la respuesta si un correo existe en el sistema.
+        </p>
+      </main>
+    </div>
+
+    <script type="module">
+      import { getSupabaseClient } from './supabaseClient.js';
+
+      const form = document.getElementById('forgot-form');
+      const emailInput = document.getElementById('email');
+      const btn = document.getElementById('btn-submit');
+      const announce = document.getElementById('announce');
+      const bannerConfig = document.getElementById('banner-config');
+
+      const sb = getSupabaseClient();
+      if (!sb) {
+        bannerConfig.textContent =
+          'Falta la configuración de Supabase en esta build (SUPABASE_URL y SUPABASE_ANON_KEY). Consulta README.';
+        bannerConfig.classList.add('visible');
+        btn.disabled = true;
+        emailInput.disabled = true;
+      }
+
+      function setLoading(loading) {
+        btn.disabled = loading;
+        btn.classList.toggle('loading', loading);
+        if (loading) {
+          btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Enviando…';
+        } else {
+          btn.innerHTML = '<span class="btn-text">Enviar enlace</span>';
+        }
+      }
+
+      function flashMessage(kind, msg) {
+        announce.className = 'msg visible ' + kind;
+        announce.textContent = msg;
+      }
+
+      function clearAnnouncement() {
+        announce.className = 'msg';
+        announce.textContent = '';
+      }
+
+      function isEmailValid(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!sb) return;
+
+        clearAnnouncement();
+        const email = emailInput.value.trim().toLowerCase();
+
+        if (!email || !isEmailValid(email)) {
+          flashMessage('error', 'Introduce una dirección de correo válida.');
+          emailInput.focus();
+          return;
+        }
+
+        /** Debe coincidir con Redirect URLs registradas en Supabase */
+        const redirectTo = new URL('./reset.html', window.location.href).href;
+
+        setLoading(true);
+        const { error } = await sb.auth.resetPasswordForEmail(email, {
+          redirectTo,
+        });
+        setLoading(false);
+
+        if (error) {
+          flashMessage(
+            'error',
+            'No pudimos completar la solicitud en este momento. Intenta de nuevo más tarde.'
+          );
+          console.warn('[Forgot]', error.message);
+          return;
+        }
+
+        flashMessage(
+          'success',
+          'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
+        );
+        form.reset();
+      });
+    </script>
+  </body>
+</html>

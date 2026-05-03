@@ -1,0 +1,12 @@
+{
+  "name": "schooltask-password-recovery",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ./scripts/write-supabase-config.mjs",
+    "vercel-build": "npm run build"
+  },
+  "devDependencies": {
+    "dotenv": "^16.6.1"
+  }
+}
